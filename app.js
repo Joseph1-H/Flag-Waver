@@ -190,6 +190,28 @@
     buildFlagMesh();
   }
 
+  // Build a flag texture whose orientation is identical on every browser/GPU.
+  // We pre-flip the pixels vertically and disable WebGL's own flipY, because
+  // Safari (and some drivers) ignore UNPACK_FLIP_Y_WEBGL for canvas/bitmap
+  // sources — which is what caused the upside-down flag.
+  function makeFlagTexture(source, w, h) {
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    const ctx = cv.getContext('2d');
+    ctx.translate(0, h);
+    ctx.scale(1, -1);
+    ctx.drawImage(source, 0, 0, w, h);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.flipY = false; // pixels already flipped above
+    tex.colorSpace = THREE.SRGBColorSpace;
+    if (renderer && renderer.capabilities) {
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    }
+    tex.needsUpdate = true;
+    return tex;
+  }
+
   // ---- Default texture (shown before upload) --------------------------------
   function makeDefaultTexture() {
     const c = document.createElement('canvas');
@@ -210,9 +232,7 @@
     ctx.font = '26px -apple-system, Segoe UI, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.fillText('to raise your own flag', 384, 348);
-    const tex = new THREE.CanvasTexture(c);
-    tex.anisotropy = 8;
-    return tex;
+    return makeFlagTexture(c, 768, 512);
   }
 
   // ---- Camera orbit (minimal, no external controls) -------------------------
@@ -316,40 +336,18 @@
     rebuild();
   }
 
-  function applyBitmap(source, w, h) {
-    // Draw through a 2D canvas so EXIF orientation is baked in and the
-    // texture upload is consistent across browsers (no sideways/upside-down).
-    const cv = document.createElement('canvas');
-    cv.width = w;
-    cv.height = h;
-    cv.getContext('2d').drawImage(source, 0, 0, w, h);
-    lastImageRatio = w / h;
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    tex.needsUpdate = true;
-    flagTexture = tex;
-    if (ratioMode === 'auto') flagH = flagW / lastImageRatio;
-    rebuild();
-  }
-
   function loadImage(file) {
     if (!file || !file.type.startsWith('image/')) return;
-    // Preferred path: createImageBitmap honors EXIF orientation directly.
-    if (window.createImageBitmap) {
-      createImageBitmap(file, { imageOrientation: 'from-image' })
-        .then((bmp) => { applyBitmap(bmp, bmp.width, bmp.height); bmp.close && bmp.close(); })
-        .catch(() => loadViaImg(file));
-    } else {
-      loadViaImg(file);
-    }
-  }
-
-  function loadViaImg(file) {
+    // <img> elements apply EXIF orientation by default in modern browsers,
+    // so by the time it loads the picture is already the right way up.
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = function () {
-      applyBitmap(img, img.naturalWidth, img.naturalHeight);
+      const w = img.naturalWidth, h = img.naturalHeight;
+      lastImageRatio = w / h;
+      flagTexture = makeFlagTexture(img, w, h);
+      if (ratioMode === 'auto') flagH = flagW / lastImageRatio;
+      rebuild();
       URL.revokeObjectURL(url);
     };
     img.onerror = function () { URL.revokeObjectURL(url); };
