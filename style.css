@@ -118,6 +118,33 @@ button.ghost {
 button.ghost:hover { background: rgba(91,140,255,.18); }
 button.ghost:active { transform: scale(.97); }
 
+/* Flag selector */
+#flagTabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.flag-tab, .flag-add {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .08s;
+}
+.flag-tab:hover, .flag-add:hover { background: rgba(91,140,255,.18); }
+.flag-tab:active, .flag-add:active { transform: scale(.94); }
+.flag-tab.sel {
+  border-color: var(--accent);
+  background: rgba(91,140,255,.28);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.flag-add { color: var(--accent); font-size: 20px; font-weight: 400; }
+
+.btn-row { display: flex; gap: 10px; }
+.btn-row .ghost { flex: 1; }
+button.ghost:disabled { opacity: .4; cursor: not-allowed; }
+button.ghost:disabled:hover { background: rgba(255,255,255,.06); }
+
 .hint { color: var(--muted); font-size: 12px; text-align: center; }
 
 @media (max-width: 560px) {

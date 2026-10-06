@@ -18,10 +18,15 @@
   </header>
 
   <div id="panel">
+    <div class="control">
+      <label>Flags <span id="flagCount">1 / 5</span></label>
+      <div id="flagTabs"></div>
+    </div>
+
     <label id="drop" for="file">
       <input type="file" id="file" accept="image/*" hidden />
       <span class="drop-icon">🖼️</span>
-      <span class="drop-text"><strong>Upload image</strong><small>or drop it here</small></span>
+      <span class="drop-text"><strong>Upload image</strong><small>to the selected flag</small></span>
     </label>
 
     <div class="control">
@@ -39,7 +44,10 @@
       </select>
     </div>
 
-    <button id="gust" class="ghost">💨 Gust</button>
+    <div class="btn-row">
+      <button id="gust" class="ghost">💨 Gust</button>
+      <button id="removeFlag" class="ghost" title="Remove the selected flag">🗑 Remove</button>
+    </div>
     <p class="hint">Drag to orbit · scroll to zoom</p>
   </div>
 
