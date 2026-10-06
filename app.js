@@ -140,24 +140,29 @@
   const flagGroup = new THREE.Group();
   scene.add(flagGroup);
 
-  // Pole
-  const poleHeight = flagH * 1.9;
+  // Pole — the flag flies at the TOP, just below the finial, with the mast
+  // continuing down below it.
   let pole, finial;
   function buildPole() {
     if (pole) flagGroup.remove(pole);
     if (finial) flagGroup.remove(finial);
-    const h = flagH * 1.9;
+    const cx = -flagW / 2 - 4;
+    const flagTop = flagH / 2;
+    const poleTop = flagTop + flagH * 0.1;   // small gap above the flag
+    const poleBottom = -flagH * 1.2;         // mast extends well below
+    const h = poleTop - poleBottom;
+
     const poleGeo = new THREE.CylinderGeometry(5, 6, h, 24);
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x9aa6bd, metalness: 0.75, roughness: 0.35 });
     pole = new THREE.Mesh(poleGeo, poleMat);
-    pole.position.set(-flagW / 2 - 4, h / 2 - flagH / 2, 0);
+    pole.position.set(cx, (poleTop + poleBottom) / 2, 0);
     pole.castShadow = true;
     flagGroup.add(pole);
 
     const ballGeo = new THREE.SphereGeometry(11, 24, 24);
     const ballMat = new THREE.MeshStandardMaterial({ color: 0xffcf5c, metalness: 0.9, roughness: 0.25 });
     finial = new THREE.Mesh(ballGeo, ballMat);
-    finial.position.set(-flagW / 2 - 4, h - flagH / 2 + 11, 0);
+    finial.position.set(cx, poleTop + 11, 0);
     finial.castShadow = true;
     flagGroup.add(finial);
   }
