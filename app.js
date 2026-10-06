@@ -5,22 +5,23 @@
   'use strict';
 
   // ---- Simulation constants -------------------------------------------------
-  const DAMPING = 0.03;
+  const DAMPING = 0.02;
   const DRAG = 1 - DAMPING;
   const MASS = 0.1;
-  const GRAVITY = 981 * 1.4;
+  const GRAVITY = 981 * 1.1;
   const TIMESTEP = 18 / 1000;
   const TIMESTEP_SQ = TIMESTEP * TIMESTEP;
-  const CONSTRAINT_ITERATIONS = 3;
+  const CONSTRAINT_ITERATIONS = 5;
 
   // Flag geometry (world units). Width/height recomputed when ratio changes.
-  let segsX = 24;
-  let segsY = 16;
+  let segsX = 32;
+  let segsY = 20;
   let flagW = 320;
   let flagH = 320 / 1.5;
 
   const gravityForce = new THREE.Vector3(0, -GRAVITY, 0).multiplyScalar(MASS);
-  const windForce = new THREE.Vector3(0, 0, 0);
+  const windLocal = new THREE.Vector3();
+  const drag = new THREE.Vector3();
   const tmp = new THREE.Vector3();
   const diff = new THREE.Vector3();
 
@@ -273,27 +274,58 @@
   let time = Date.now();
 
   function simulate(now) {
-    // Wind: base strength from slider, plus layered sine gusts, plus manual gust.
-    let strength = windStrength * 2000;
-    if (now < gustEnd) strength += 2600 * ((gustEnd - now) / 900);
-    const wobble = (Math.sin(now / 900) * 0.5 + Math.sin(now / 430) * 0.3 + 0.9);
-    const mag = strength * Math.max(0.15, wobble);
+    const t = now / 1000;
+    const w = windStrength; // 0..1 from slider
 
-    windForce.set(
-      mag,
-      Math.sin(now / 1700) * mag * 0.12,
-      Math.sin(now / 650) * mag * 0.35
-    );
+    // Slow gusting envelope so the breeze swells and lulls instead of blowing
+    // at a dead-constant rate. Plus any manual gust still fading out.
+    let env = 0.7 + 0.3 * Math.sin(t * 0.6) * Math.sin(t * 0.27 + 1.0);
+    if (now < gustEnd) env += 1.4 * ((gustEnd - now) / 900);
+    const base = (180 + w * 1500) * env; // overall wind pressure
 
-    // Aerodynamic force: use current face normals so the cloth catches the wind.
+    // Ripples travel from the hoist outward; faster & tighter in stronger wind.
+    const waveSpeed = 5.5 + w * 7.0;
+    const waveK = 10.5;
+
     flagGeo.computeVertexNormals();
     const normals = flagGeo.attributes.normal;
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      p.addForce(gravityForce);
-      tmp.set(normals.getX(i), normals.getY(i), normals.getZ(i));
-      const f = tmp.dot(windForce);
-      p.addForce(tmp.multiplyScalar(f));
+
+    for (let iy = 0; iy <= segsY; iy++) {
+      for (let ix = 0; ix <= segsX; ix++) {
+        const i = idx(ix, iy);
+        const p = particles[i];
+        p.addForce(gravityForce);
+
+        const u = ix / segsX; // 0 at pole, 1 at the free (fly) edge
+        const v = iy / segsY;
+        // Motion is near-zero at the pole and grows toward the fly edge,
+        // which is what keeps a real flag's flutter at its trailing end.
+        const amp = u * (0.35 + 0.65 * u);
+
+        // Two overlapping traveling waves so crests aren't perfectly straight.
+        const phase = u * waveK - t * waveSpeed + v * 1.4;
+        const ripple = Math.sin(phase) + 0.35 * Math.sin(phase * 2.1 + v * 3.0 + 1.7);
+
+        // Local wind: steady downwind push (+x) modulated by the ripple, with
+        // the ripple driving out-of-plane flutter in z and a little in y.
+        windLocal.set(
+          base * (0.9 + 0.12 * ripple),
+          base * 0.16 * ripple * amp,
+          base * (0.55 * ripple * amp + 0.07 * Math.sin(t * 1.7 + v * 2.0))
+        );
+
+        // Aerodynamic force: the cloth catches wind along its surface normal —
+        // this feedback (curves change which way faces the wind) is what makes
+        // the fluttering self-organize and look alive.
+        tmp.set(normals.getX(i), normals.getY(i), normals.getZ(i));
+        const along = tmp.dot(windLocal);
+        p.addForce(tmp.multiplyScalar(along));
+
+        // Direct drag so the flag reliably streams out downwind (a flat flag's
+        // normal is perpendicular to +x wind, so without this it wouldn't fill).
+        drag.set(base * 0.16 * amp, 0, 0);
+        p.addForce(drag);
+      }
     }
 
     for (let i = 0; i < particles.length; i++) particles[i].integrate(TIMESTEP_SQ);
