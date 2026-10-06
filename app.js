@@ -185,8 +185,11 @@
       metalness: 0.0,
     });
     flagMesh = new THREE.Mesh(flagGeo, flagMat);
-    flagMesh.castShadow = true;
-    flagMesh.receiveShadow = true;
+    // No self-shadowing: a thin, waving double-sided sheet shadowing itself
+    // just produces crawling shadow-acne speckles, and there's no ground to
+    // catch a cast shadow anyway. Form reads fine from diffuse shading.
+    flagMesh.castShadow = false;
+    flagMesh.receiveShadow = false;
     flagGroup.add(flagMesh);
   }
 
@@ -200,17 +203,34 @@
   // We pre-flip the pixels vertically and disable WebGL's own flipY, because
   // Safari (and some drivers) ignore UNPACK_FLIP_Y_WEBGL for canvas/bitmap
   // sources — which is what caused the upside-down flag.
+  function toPOT(n) {
+    let p = 1;
+    while (p < n) p <<= 1;
+    return Math.min(p, 2048);
+  }
+
   function makeFlagTexture(source, w, h) {
+    // Render at power-of-two dimensions so WebGL can build mipmaps — without
+    // them the texture shimmers/sparkles ("popping pixels") at glancing angles.
+    const cw = toPOT(w);
+    const ch = toPOT(h);
     const cv = document.createElement('canvas');
-    cv.width = w;
-    cv.height = h;
+    cv.width = cw;
+    cv.height = ch;
     const ctx = cv.getContext('2d');
-    ctx.translate(0, h);
-    ctx.scale(1, -1);
-    ctx.drawImage(source, 0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.translate(0, ch);
+    ctx.scale(1, -1); // pre-flip; GL flipY stays off for cross-browser consistency
+    ctx.drawImage(source, 0, 0, cw, ch);
     const tex = new THREE.CanvasTexture(cv);
-    tex.flipY = false; // pixels already flipped above
+    tex.flipY = false;
     tex.colorSpace = THREE.SRGBColorSpace;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
     if (renderer && renderer.capabilities) {
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     }
