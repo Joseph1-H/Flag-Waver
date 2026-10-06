@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flag Waver</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="scene"></div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark">⚑</span>
+      <span class="brand-name">Flag&nbsp;Waver</span>
+    </div>
+    <p class="tagline">Upload an image — watch it fly.</p>
+  </header>
+
+  <div id="panel">
+    <label id="drop" for="file">
+      <input type="file" id="file" accept="image/*" hidden />
+      <span class="drop-icon">🖼️</span>
+      <span class="drop-text"><strong>Upload image</strong><small>or drop it here</small></span>
+    </label>
+
+    <div class="control">
+      <label for="wind">Wind <span id="windVal">60</span></label>
+      <input type="range" id="wind" min="0" max="100" value="60" />
+    </div>
+
+    <div class="control">
+      <label for="ratio">Flag shape</label>
+      <select id="ratio">
+        <option value="1.5" selected>3 : 2 (standard)</option>
+        <option value="1.9">Long pennant</option>
+        <option value="1.0">Square</option>
+        <option value="auto">Match my image</option>
+      </select>
+    </div>
+
+    <button id="gust" class="ghost">💨 Gust</button>
+    <p class="hint">Drag to orbit · scroll to zoom</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
