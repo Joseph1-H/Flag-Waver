@@ -316,21 +316,43 @@
     rebuild();
   }
 
+  function applyBitmap(source, w, h) {
+    // Draw through a 2D canvas so EXIF orientation is baked in and the
+    // texture upload is consistent across browsers (no sideways/upside-down).
+    const cv = document.createElement('canvas');
+    cv.width = w;
+    cv.height = h;
+    cv.getContext('2d').drawImage(source, 0, 0, w, h);
+    lastImageRatio = w / h;
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    tex.needsUpdate = true;
+    flagTexture = tex;
+    if (ratioMode === 'auto') flagH = flagW / lastImageRatio;
+    rebuild();
+  }
+
   function loadImage(file) {
     if (!file || !file.type.startsWith('image/')) return;
+    // Preferred path: createImageBitmap honors EXIF orientation directly.
+    if (window.createImageBitmap) {
+      createImageBitmap(file, { imageOrientation: 'from-image' })
+        .then((bmp) => { applyBitmap(bmp, bmp.width, bmp.height); bmp.close && bmp.close(); })
+        .catch(() => loadViaImg(file));
+    } else {
+      loadViaImg(file);
+    }
+  }
+
+  function loadViaImg(file) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = function () {
-      lastImageRatio = img.width / img.height;
-      const tex = new THREE.Texture(img);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      tex.needsUpdate = true;
-      flagTexture = tex;
-      if (ratioMode === 'auto') flagH = flagW / lastImageRatio;
-      rebuild();
+      applyBitmap(img, img.naturalWidth, img.naturalHeight);
       URL.revokeObjectURL(url);
     };
+    img.onerror = function () { URL.revokeObjectURL(url); };
     img.src = url;
   }
 
